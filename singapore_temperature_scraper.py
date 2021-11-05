@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
 import time
+import os
 
 def flattenDict(dd, separator ='_', prefix =''):
     return {prefix + separator + k if prefix else k : v
@@ -56,18 +57,30 @@ class singaporeAirTemperature:
     def loadData(self):
         dataJsonList = self.getData()
         dfReadings = pd.DataFrame()
-        for i in dataJsonList[0]["items"]:
-            timestamp = i["timestamp"]
-            dfR = pd.DataFrame(i["readings"])
-            dfR["timestamp"] = i["timestamp"]
-            dfReadings = pd.concat([dfReadings, dfR], axis = 0)
-            dfReadings = dfReadings.reset_index(drop = True)
+        for x in range(0, len(dataJsonList)):
+            print(f"Processing data for {self.dates[x]}...")
+            for i in dataJsonList[x]["items"]:
+                timestamp = i["timestamp"]
+                dfR = pd.DataFrame(i["readings"])
+                dfR["timestamp"] = i["timestamp"]
+                dfR["date_query"] = self.dates[x]
+                dfReadings = pd.concat([dfReadings, dfR], axis = 0)
+                dfReadings = dfReadings.reset_index(drop = True)
         dfStations = pd.DataFrame()
         for j in dataJsonList:
             for k in j["metadata"]["stations"]:
                 dfS = pd.DataFrame([flattenDict(k)])
                 dfStations = pd.concat([dfStations, dfS], axis = 0)
                 dfStations = dfStations.reset_index(drop = True)
+        dfStations.drop_duplicates(inplace = True)
         print(f"Size of dfReadings: {dfReadings.shape}\nSize of dfStations: {dfStations.shape}")
         return dfReadings, dfStations
-		
+       
+    def importData(self):
+        dfReadings, dfStations = self.loadData()
+        dfReadingsFilename = f"singapore_temperature_readings_{datetime.now().strftime('%Y-%m-%d')}.csv"
+        dfStationsFilename = f"singapore_temperature_stations_{datetime.now().strftime('%Y-%m-%d')}.csv"
+        dfReadings.to_csv(dfReadingsFilename, index = False)
+        dfStations.to_csv(dfStationsFilename, index = False)
+        print(f"Files saved as {dfReadingsFilename} and {dfStationsFilename} in {os.getcwd()}")
+        
